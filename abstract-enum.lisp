@@ -31,6 +31,8 @@
       (values (next-element e) t)
       (values nil nil)))
 
+
+
 (defclass list-enum (abstract-enum)
   ((list-elem :accessor list-elem :initarg :list-elem) 
    (is-circular :accessor is-circular :initarg :is-circular)))
@@ -55,7 +57,15 @@
 (defmethod next-element ((e list-enum))
   (prog1 (car (next-elem e))
     (setf (next-elem e) (cdr (next-elem e)))))
+
+(defmethod call-enum ((e list-enum))
+  (when (is-circular e)
+      (when (not (next-element-p e))
+	  (init-enum e)))
+  (call-next-method e))
  
+
+
 (defclass inductive-enum (abstract-enum)
   ((function-enum :accessor function-enum :initarg :function-enum)))
 
@@ -79,15 +89,20 @@
   (prog1 (next-elem e)
     (setf (next-elem e) (funcall (function-enum e) (next-elem e)))))
     
+
+
 (defclass parallel-enum (abstract-enum)
   ((list-enum :accessor list-enum :initarg :list-enum)))
 
 (defun make-parallel-enum (list)
   (make-instance 'parallel-enum
-		 :list-enum (mapcar #'copy-enum list)))
+		 :list-enum (mapcar #'copy-enum list)
+		 :first-element (mapcar #'first-element list)
+		 :next-elem '()))
 
 (defmethod init-enum ((e parallel-enum))
   (mapcar #'init-enum (list-enum e))
+  (setf (next-elem e) '())
   e)
 
 (defmethod copy-enum ((e parallel-enum))
@@ -97,4 +112,80 @@
   (every #'next-element-p (list-enum e)))
 
 (defmethod next-element ((e parallel-enum))
-  (mapcar #'next-element (list-enum e)))
+  (setf (next-elem e) (mapcar #'next-element (list-enum e)))
+  (next-elem e))
+
+(defclass filter-enum (abstract-enum)
+  ((f-enum :accessor f-enum :initarg :f-enum)
+   (pred :accessor pred :initarg :pred)))
+
+(defun make-filter-enum (e p)
+  (let ((enum (copy-enum e)))
+  (make-instance 'filter-enum
+		 :f-enum enum
+		 :pred p
+		 :first-element (first-element enum)
+		 :next-elem nil)))
+
+(defun filtrer(p e)
+  (make-filter-enum e p))
+
+(defmethod init-enum ((e filter-enum))
+  (init-enum (f-enum e))
+  (setf (next-elem e) nil)
+  e)
+
+(defmethod copy-enum ((e filter-enum))
+  (make-filter-enum (f-enum e)
+		    (pred e)))
+
+(defmethod next-element-p ((e filter-enum))
+  (next-element-p (f-enum e)))
+
+(defmethod next-element ((e filter-enum))
+  (setf (next-elem e) (next-element (f-enum e)))
+  (next-elem e))
+
+(defmethod call-enum ((e filter-enum))
+  (let ((next (next-element-p e))
+	(tmp (next-element e)))
+    (if (not next) 
+	(values nil nil)
+	(if (not (funcall (pred e) tmp))
+	    (call-enum e)
+	    (values tmp t)))))
+
+(defclass concatenation-enum (abstract-enum)
+  ((list-enum :accessor list-enum :initarg :list-enum)))
+
+(defun make-concatenation-enum (list)
+  (make-instance 'concatenation-enum
+		 :list-enum (mapcar #'copy-enum list)
+		 :first-element (first-element (car list))
+		 :next-elem (mapcar #'copy-enum list)))
+
+(defmethod init-enum ((e concatenation-enum))
+  (mapcar #'init-enum (list-enum e))
+  (setf (next-elem e) (mapcar #'copy-enum (list-enum e)))
+  e)
+
+(defmethod copy-enum ((e concatenation-enum))
+  (make-concatenation-enum (list-enum e)))
+
+(defmethod next-element-p ((e concatenation-enum))
+  (if (endp (next-elem e))
+      nil
+      (if (equal (length (next-elem e)) 1)
+	  (next-element-p (car (next-elem e)))
+	  t)))
+     
+
+(defmethod next-element ((e concatenation-enum))
+  (if (next-element-p e)
+      (if (not (next-element-p (car (next-elem e))))
+	  (prog2 (setf (next-elem e) (cdr (next-elem e)))
+	      (next-element e))
+	  (next-element (car (next-elem e))))))
+
+	  
+  

@@ -24,11 +24,8 @@
   (or (is-circular e) (not (endp (next-elem e)))))
 
 (defmethod next-element ((e list-enum))
-  (prog1 (car (next-elem e))
-    (setf (next-elem e) (cdr (next-elem e)))))
-
-(defmethod call-enum ((e list-enum))
   (when (is-circular e)
       (when (endp (next-elem e))
 	(init-enum e)))
-  (call-next-method e))
+  (prog1 (car (next-elem e))
+    (setf (next-elem e) (cdr (next-elem e)))))

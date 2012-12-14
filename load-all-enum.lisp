@@ -1,0 +1,8 @@
+(load "abstract-enum.lisp")
+(load "filter-enum.lisp")
+(load "list-enum.lisp")
+(load "parallel-enum.lisp")
+(load "concatenation-enum.lisp")
+(load "inductive-enum.lisp")
+(load "memory-enum.lisp")
+(load "product-enum.lisp")

@@ -21,7 +21,7 @@
   (make-list-enum (list-element e) (is-circular e)))
 
 (defmethod next-element-p ((e list-enum))
-  (not (endp (next-elem e))))
+  (or (is-circular e) (not (endp (next-elem e)))))
 
 (defmethod next-element ((e list-enum))
   (prog1 (car (next-elem e))
@@ -29,6 +29,6 @@
 
 (defmethod call-enum ((e list-enum))
   (when (is-circular e)
-      (when (not (next-element-p e))
-	  (init-enum e)))
+      (when (endp (next-elem e))
+	(init-enum e)))
   (call-next-method e))
